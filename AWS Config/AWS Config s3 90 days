@@ -10,6 +10,8 @@ resource "aws_s3_bucket" "audit_logs" {
 
 # Configure S3 lifecycle policies to retain audit records for 90 days and archive them for 1 year
 resource "aws_s3_bucket_lifecycle_configuration" "audit_logs_lifecycle" {
+  bucket = aws_s3_bucket.audit_logs.id
+
   rule {
     id      = "retain-audit-logs"
     prefix  = "AWSLogs/"
@@ -26,13 +28,3 @@ resource "aws_s3_bucket_lifecycle_configuration" "audit_logs_lifecycle" {
   }
 }
 
-# Create an Athena database for querying audit logs
-resource "aws_athena_database" "audit_logs_database" {
-  name = "my_audit_logs_database"
-}
-
-# Create an Athena table to represent the audit logs in S3
-resource "aws_athena_named_query" "create_audit_logs_table" {
-  name  = "create_audit_logs_table"
-  query = "CREATE EXTERNAL TABLE audit_logs (timestamp TIMESTAMP, event_name STRING, user_identity STRUCT<type:STRING,principal_id:STRING,arn:STRING>, event_source STRING, event_type STRING, request_parameters MAP<STRING,STRING>, response_elements MAP<STRING,STRING>, additional_info MAP<STRING,STRING>, request_id STRING, event_id STRING, resources ARRAY<STRUCT<type:STRING,arn:STRING>>, event_category STRING, recipient_account_id STRING, shared_event_id STRING, vpc_endpoint_id STRING) PARTITIONED BY (year INT, month INT, day INT) ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat' LOCATION 's3://${aws_s3_bucket.audit_logs.bucket}/AWSLogs/${data.aws_caller_identity.current.account_id}/cloudtrail/'"
-}
