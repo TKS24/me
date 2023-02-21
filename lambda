@@ -1,0 +1,18 @@
+import boto3
+import json
+
+def lambda_handler(event, context):
+    # Get SNS topic ARN from input parameters
+    sns_topic_arn = json.loads(event['invokingEvent'])['configurationItem']['inputParameters']['SNSTopicARN']
+
+    # Get instance ID and clock source from configuration item
+    configuration_item = json.loads(event['invokingEvent'])['configurationItem']
+    instance_id = configuration_item['resourceId']
+    clock_source = configuration_item['configuration']['instanceProfile']['attributes']['kernelId']
+
+    # Check whether clock source is internal
+    if clock_source != 'tsc':
+        # Send SNS notification
+        sns = boto3.client('sns')
+        message = f"Instance {instance_id} is not configured to use internal system clock for timestamps."
+        sns.publish(TopicArn=sns_topic_arn, Message=message)
