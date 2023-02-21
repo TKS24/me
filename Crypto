@@ -1,0 +1,14 @@
+resource "aws_config_config_rule" "audit_information_integrity" {
+  name        = "audit-information-integrity"
+  description = "Determines if the information system uses cryptographic mechanisms to protect the integrity of audit information."
+  input_parameters = jsonencode({
+    "requiredTagKey" = "audit-information-integrity"
+  })
+  scope {
+    compliance_resource_id = "ALL_RESOURCES"
+  }
+  source {
+    owner             = "AWS"
+    source_identifier = "CONFIG_RULES/AWS_SECURITY_CRYPTOGRAPHIC_CONFIG_RULES/AWS_SECURITY_CRYPTOGRAPHIC_RULES_INFORMATION_INTEGRITY_CHECK"
+  }
+}
