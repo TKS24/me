@@ -1,0 +1,30 @@
+# Define variables
+variable "sns_topic_arn" {
+  default = "arn:aws:sns:us-east-1:123456789012:example-topic"
+}
+
+# Create AWS Config rule
+resource "aws_config_rule" "example" {
+  name        = "use-internal-clock"
+  description = "Check whether EC2 instances are configured to use internal system clock for timestamps."
+
+  scope {
+    compliance_resource_id = "AWS::EC2::Instance"
+  }
+
+  source {
+    owner             = "CUSTOM_LAMBDA"
+    source_identifier = "use-internal-clock"
+  }
+
+  input_parameters = <<EOF
+    {
+      "SNSTopicARN": "${var.sns_topic_arn}"
+    }
+  EOF
+}
+
+# Output rule ID
+output "rule_id" {
+  value = aws_config_rule.example.id
+}
