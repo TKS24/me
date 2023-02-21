@@ -1,0 +1,31 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ConfigPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "config:PutConfigRule",
+                "config:PutConfigRule",
+                "config:PutConfigurationRecorder",
+                "config:StartConfigurationRecorder",
+                "config:StopConfigurationRecorder",
+                "config:DeleteConfigurationRecorder",
+                "config:DeleteDeliveryChannel",
+                "config:DescribeConfigurationRecorders",
+                "config:DescribeConfigurationRecorderStatus",
+                "config:DescribeDeliveryChannelStatus",
+                "config:PutDeliveryChannel",
+                "config:PutEvaluations",
+                "config:DescribeDeliveryChannels",
+                "config:DescribeDeliveryChannelStatus",
+                "config:GetComplianceDetailsByResource",
+                "config:BatchGetResourceConfig",
+                "config:GetComplianceSummaryByConfigRule",
+                "config:DescribeComplianceByConfigRule",
+                "config:DescribeComplianceByResource"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
