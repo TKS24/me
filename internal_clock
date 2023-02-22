@@ -1,0 +1,30 @@
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+  key_name      = "example-key"
+  subnet_id     = "subnet-12345678"
+  
+  # These tags are optional but recommended
+  tags = {
+    Name = "Example EC2 Instance"
+  }
+}
+
+resource "aws_ssm_association" "time_sync" {
+  name = "AWS-RunShellScript"
+  targets {
+    key    = "instanceids"
+    values = [aws_instance.example.id]
+  }
+  parameters = {
+    "workingDirectory" = ["/tmp"]
+    "executionTimeout" = ["60"]
+    "commands"         = ["sudo ntpdate -s time.nist.gov"]
+  }
+  schedule_expression = "cron(0/5 * * * ? *)" # Runs every 5 minutes
+  depends_on = [aws_instance.example]
+}
