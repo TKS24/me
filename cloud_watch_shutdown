@@ -1,0 +1,53 @@
+# Create CloudWatch Event rule to detect audit processing failures
+resource "aws_cloudwatch_event_rule" "audit_failure_rule" {
+  name        = "audit_failure_rule"
+  description = "Trigger Lambda function on audit processing failure"
+  event_pattern = jsonencode({
+    source = ["aws.ec2"]
+    detail = {
+      state = ["pending"]
+      state_reason = {
+        code = ["Client.UserInitiatedShutdown"]
+      }
+    }
+  })
+}
+
+# Create Lambda function to shutdown non-compliant instances
+resource "aws_lambda_function" "shutdown_instance" {
+  filename         = "shutdown_instance.zip"
+  function_name    = "shutdown_instance"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "index.handler"
+  runtime          = "nodejs14.x"
+}
+
+# Create IAM role for Lambda function
+resource "aws_iam_role" "lambda_role" {
+  name = "lambda_role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach policy to IAM role allowing Lambda function to stop EC2 instances
+resource "aws_iam_role_policy_attachment" "lambda_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+  role       = aws_iam_role.lambda_role.name
+}
+
+# Create CloudWatch Event target to trigger Lambda function on audit processing failure
+resource "aws_cloudwatch_event_target" "audit_failure_target" {
+  rule      = aws_cloudwatch_event_rule.audit_failure_rule.name
+  target_id = "shutdown_instance"
+  arn       = aws_lambda_function.shutdown_instance.arn
+}
