@@ -1,0 +1,13 @@
+import boto3
+
+def lambda_handler(event, context):
+    instance_id = event['detail']['instance-id']
+    ec2 = boto3.client('ec2')
+    instance = ec2.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]
+    instance_state = instance['State']['Name']
+    if instance_state == 'running':
+        instance_type = instance['InstanceType']
+        auto_shutdown_supported = instance_type in ['t2.micro', 't2.nano']
+        if not auto_shutdown_supported:
+            ec2.stop_instances(InstanceIds=[instance_id])
+
