@@ -1,0 +1,72 @@
+# Create an S3 bucket to store the encrypted audit logs
+resource "aws_s3_bucket" "audit" {
+  bucket = "audit-logs-bucket"
+  # Enable server-side encryption for the audit logs
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+}
+
+# Create an IAM role for the audit tools with the minimum necessary permissions
+resource "aws_iam_role" "audit" {
+  name = "audit-role"
+
+  # Define the permissions for the role
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "audit.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  # Attach policies for RBAC and least privilege
+  # e.g., AWS-managed policies or custom policies
+  # ...
+}
+
+# Create a custom AWS Config rule to check whether the IAM role and S3 bucket are configured correctly
+resource "aws_config_config_rule" "audit" {
+  name = "audit-rule"
+
+  source {
+    owner             = "CUSTOM"
+    source_identifier = "audit-rule"
+  }
+
+  scope {
+    compliance_resource_types = ["AWS::IAM::Role", "AWS::S3::Bucket"]
+    tag_key                   = "environment"
+    tag_value                 = "production"
+  }
+
+  input_parameters = jsonencode({
+    s3_bucket_arn = aws_s3_bucket.audit.arn
+    role_arn      = aws_iam_role.audit.arn
+  })
+
+  description = "Ensures that the information system has the capability to provide confidentiality, integrity, and availability of audit tools"
+}
+
+# Create a CloudWatch Events rule to trigger the AWS Config rule periodically
+resource "aws_cloudwatch_event_rule" "audit" {
+  name        = "audit-rule-trigger"
+  description = "Triggers the audit-rule every hour"
+
+  schedule_expression = "rate(1 hour)"
+}
+
+resource "aws_cloudwatch_event_target" "audit" {
+  rule      = aws_cloudwatch_event_rule.audit.name
+  arn       = aws_config_config_rule.audit.arn
+  input     = jsonencode({})
+}
