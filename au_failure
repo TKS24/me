@@ -1,0 +1,56 @@
+variable "aws_region" {
+  default = "us-west-2"
+}
+
+variable "sns_topic_name" {
+  default = "audit-failure-alerts"
+}
+
+variable "sns_protocol" {
+  default = "email"
+}
+
+variable "sns_endpoint" {
+  default = "user@example.com"
+}
+
+variable "config_rule_name" {
+  default = "audit-failure-rule"
+}
+
+variable "config_rule_max_execution_frequency" {
+  default = "One_Hour"
+}
+
+variable "config_rule_failure_threshold_percentage" {
+  default = 50
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_sns_topic" "audit_failure_alerts" {
+  name = var.sns_topic_name
+}
+
+resource "aws_sns_topic_subscription" "audit_failure_alerts" {
+  topic_arn = aws_sns_topic.audit_failure_alerts.arn
+  protocol  = var.sns_protocol
+  endpoint  = var.sns_endpoint
+}
+
+resource "aws_config_rule" "audit_failure_rule" {
+  name        = var.config_rule_name
+  description = "Alert authorized personnel in the event of an audit processing failure"
+
+  input_parameters = <<EOF
+{
+  "maximumExecutionFrequency": "${var.config_rule_max_execution_frequency}",
+  "failureThresholdPercentage": ${var.config_rule_failure_threshold_percentage},
+  "snsTopicARN": "${aws_sns_topic.audit_failure_alerts.arn}"
+}
+EOF
+
+  source_identifier = "AWS_CONFIG_AUDIT_FAILURE"
+}
