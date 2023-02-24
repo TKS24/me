@@ -1,0 +1,46 @@
+provider "aws" {
+  region = var.region
+}
+
+resource "aws_config_configuration_recorder" "example" {
+  name = var.config_recorder_name
+
+  recording_group {
+    all_supported = true
+    include_global_resource_types = true
+  }
+
+  # Store recordings in an S3 bucket
+  recording_configuration {
+    s3_bucket_name = var.s3_bucket_name
+  }
+}
+
+resource "aws_config_delivery_channel" "example" {
+  name = var.delivery_channel_name
+
+  # Send Config data to a CloudWatch Logs log group
+  s3_bucket_name = var.s3_bucket_name
+  s3_key_prefix = "config/"
+  sns_topic_arn = var.sns_topic_arn
+}
+
+resource "aws_config_configuration_aggregator" "example" {
+  name = var.config_aggregator_name
+
+  # Aggregate Config data from all AWS regions
+  configuration_aggregator {
+    configuration_aggregator_name = var.config_aggregator_name
+    account_aggregation_source {
+      account_ids = []
+      all_aws_regions = true
+    }
+  }
+
+  # Use a security information and event management (SIEM) tool to correlate audit records across different repositories
+  organization_aggregation_source {
+    all_aws_regions = true
+    role_arn = var.role_arn
+    aws_regions = [var.region]
+  }
+}
