@@ -1,46 +1,34 @@
-provider "aws" {
-  region = var.region
+variable "region" {
+  description = "The AWS region where the resources should be created."
+  default     = "us-west-2"
 }
 
-resource "aws_config_configuration_recorder" "example" {
-  name = var.config_recorder_name
-
-  recording_group {
-    all_supported = true
-    include_global_resource_types = true
-  }
-
-  # Store recordings in an S3 bucket
-  recording_configuration {
-    s3_bucket_name = var.s3_bucket_name
-  }
+variable "config_recorder_name" {
+  description = "The name of the AWS Config recorder."
+  default     = "example-recorder"
 }
 
-resource "aws_config_delivery_channel" "example" {
-  name = var.delivery_channel_name
-
-  # Send Config data to a CloudWatch Logs log group
-  s3_bucket_name = var.s3_bucket_name
-  s3_key_prefix = "config/"
-  sns_topic_arn = var.sns_topic_arn
+variable "s3_bucket_name" {
+  description = "The name of the S3 bucket where the AWS Config recordings should be stored."
+  default     = "example-bucket"
 }
 
-resource "aws_config_configuration_aggregator" "example" {
-  name = var.config_aggregator_name
+variable "delivery_channel_name" {
+  description = "The name of the AWS Config delivery channel."
+  default     = "example-channel"
+}
 
-  # Aggregate Config data from all AWS regions
-  configuration_aggregator {
-    configuration_aggregator_name = var.config_aggregator_name
-    account_aggregation_source {
-      account_ids = []
-      all_aws_regions = true
-    }
-  }
+variable "sns_topic_arn" {
+  description = "The ARN of the SNS topic where AWS Config notifications should be sent."
+  default     = "arn:aws:sns:us-west-2:123456789012:example-topic"
+}
 
-  # Use a security information and event management (SIEM) tool to correlate audit records across different repositories
-  organization_aggregation_source {
-    all_aws_regions = true
-    role_arn = var.role_arn
-    aws_regions = [var.region]
-  }
+variable "config_aggregator_name" {
+  description = "The name of the AWS Config aggregator."
+  default     = "example-aggregator"
+}
+
+variable "role_arn" {
+  description = "The ARN of the IAM role that should be used to collect Config data from an organization aggregation source."
+  default     = "arn:aws:iam::123456789012:role/example-role"
 }
