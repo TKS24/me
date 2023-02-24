@@ -1,79 +1,69 @@
-provider "aws" {
-  region = var.region
+variable "region" {
+  description = "The AWS region to use."
+  default     = "us-west-2"
 }
 
-resource "aws_config_config_rule" "protect_audit_tools" {
-  name        = var.rule_name
-  description = var.rule_description
+variable "rule_name" {
+  description = "The name of the AWS Config rule."
+  default     = "protect-audit-tools"
+}
 
-  source {
-    owner             = "AWS"
-    source_identifier = "ACCESS_KEYS_ROTATED"
-  }
+variable "rule_description" {
+  description = "The description of the AWS Config rule."
+  default     = "Enforce protection of audit tools"
+}
 
-  input_parameters = jsonencode({
-    "auditToolsAccessProtection" = {
-      "logicalResourceId" = var.rule_logical_resource_id
-      "parameterValues" = {
-        "protectAuditTools" = var.rule_protect_audit_tools
+variable "rule_logical_resource_id" {
+  description = "The logical ID of the AWS CloudFormation resource that represents the protection of audit tools."
+  default     = "AuditToolsProtection"
+}
+
+variable "rule_protect_audit_tools" {
+  description = "Whether to protect the audit tools or not."
+  default     = true
+}
+
+variable "policy_name" {
+  description = "The name of the IAM policy."
+  default     = "audit_tools_protection_policy"
+}
+
+variable "policy_document" {
+  description = "The JSON policy document for the IAM policy."
+  default     = {
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = ["bucket-owner-full-control"]
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = "*"
       }
-    }
-  })
-
-  depends_on = [
-    aws_iam_policy.audit_tools_protection_policy
-  ]
-}
-
-resource "aws_iam_policy" "audit_tools_protection_policy" {
-  name   = var.policy_name
-  policy = jsonencode(var.policy_document)
-}
-
-resource "aws_iam_policy_attachment" "audit_tools_protection_policy_attachment" {
-  name       = var.policy_attachment_name
-  policy_arn = aws_iam_policy.audit_tools_protection_policy.arn
-  groups     = var.policy_attachment_groups
-}
-
-
-
-
-
-provider "aws" {
-  region = var.region
-}
-
-resource "aws_config_config_rule" "protect_audit_tools" {
-  name        = var.rule_name
-  description = var.rule_description
-
-  source {
-    owner             = "AWS"
-    source_identifier = "ACCESS_KEYS_ROTATED"
+    ]
   }
-
-  input_parameters = jsonencode({
-    "auditToolsAccessProtection" = {
-      "logicalResourceId" = var.rule_logical_resource_id
-      "parameterValues" = {
-        "protectAuditTools" = var.rule_protect_audit_tools
-      }
-    }
-  })
-
-  depends_on = [
-    aws_iam_policy.audit_tools_protection_policy
-  ]
 }
 
-resource "aws_iam_policy" "audit_tools_protection_policy" {
-  name   = var.policy_name
-  policy = jsonencode(var.policy_document)
+variable "policy_attachment_name" {
+  description = "The name of the IAM policy attachment."
+  default     = "audit_tools_protection_policy_attachment"
 }
 
-resource "aws_iam_policy_attachment" "audit_tools_protection_policy_attachment" {
-  name       = var.policy_attachment_name
-  policy_arn = aws_iam_policy.audit_tools_protection_policy.arn
-  groups     = var.policy_attachment_groups
+variable "policy_attachment_groups" {
+  description = "The list of IAM groups to which the policy should be attached."
+  default     = ["audit-admins"]
 }
