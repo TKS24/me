@@ -1,0 +1,184 @@
+provider "aws" {
+  region = var.region
+}
+
+resource "aws_s3_bucket" "backup" {
+  bucket = var.backup_bucket_name
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  replication_configuration {
+    role = aws_iam_role.replication.arn
+
+    rules {
+      id      = "example-rule"
+      status  = "Enabled"
+      prefix  = "backup/"
+      priority = 1
+
+      destination {
+        bucket        = var.backup_bucket_name
+        storage_class = "STANDARD"
+        replica_kms_key_id = "alias/aws/s3"
+        access_control_translation {
+          owner = "Destination"
+        }
+        encryption_configuration {
+          replica_kms_key_id = "alias/aws/s3"
+        }
+      }
+
+      source_selection_criteria {
+        sse_kms_encrypted_objects {
+          status = "Enabled"
+        }
+      }
+    }
+  }
+}
+
+resource "aws_iam_role" "replication" {
+  name = "replication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_backup_plan" "backup" {
+  name = var.backup_plan_name
+
+  rule {
+    rule_name         = var.weekly_full_backup_name
+    target_vault_name = var.backup_vault_name
+    schedule          = var.weekly_full_backup_schedule
+    start_window_minutes = var.weekly_full_backup_start_window_minutes
+    completion_window_minutes = var.weekly_full_backup_completion_window_minutes
+  }
+
+  rule {
+    rule_name         = var.daily_incremental_backup_name
+    target_vault_name = var.backup_vault_name
+    schedule          = var.daily_incremental_backup_schedule
+    start_window_minutes = var.daily_incremental_backup_start_window_minutes
+    completion_window_minutes = var.daily_incremental_backup_completion_window_minutes
+  }
+
+  advanced_backup_setting {
+    resource_type = "All"
+    backup_options {
+      resource_type = "All"
+      backup_plan_name = var.backup_plan_name
+      backup_rule_id = aws_backup_plan_rule.weekly-full-backup.id
+    }
+  }
+}
+
+resource "aws_backup_plan_rule" "weekly-full-backup" {
+  rule_name         = var.weekly_full_backup_name
+  target_vault_name = var.backup_vault_name
+  schedule          = var.weekly_full_backup_schedule
+  start_window_minutes = var.weekly_full_backup_start_window_minutes
+  completion_window_minutes = var.weekly_full_backup_completion_window_minutes
+}
+
+resource "aws_config_rule" "backup-policy-rule" {
+  name        = var.backup_policy_rule_name
+  description = "Ensure backup policy is being followed"
+
+  input_parameters = jsonencode({
+    full_backup_schedule = var.weekly_full_backup_schedule,
+    incremental_backup_schedule = var.daily_incremental_backup_schedule,
+    backup_vault_name = var.backup_vault_name,
+    backup_bucket_name = var.backup_bucket_name,
+  })
+
+  source_identifier = "AWS_BACKUP_POLICY_COMPLIANCE"
+  maximum_execution_frequency = "Six_Hours"
+}
+
+
+
+
+////variables
+
+variable "region" {
+  type    = string
+  default = "us-west-2"
+}
+
+variable "backup_bucket_name" {
+  type    = string
+  default = "example-backup-bucket"
+}
+
+variable "backup_vault_name" {
+  type    = string
+  default = "example-backup-vault"
+}
+
+variable "backup_plan_name" {
+  type    = string
+  default = "example-backup-plan"
+}
+
+variable "backup_policy_rule_name" {
+  type    = string
+  default = "backup"
+}
+
+variable "weekly_full_backup_name" {
+  type    = string
+  default = "weekly-full-backup"
+}
+
+variable "weekly_full_backup_schedule" {
+  type    = string
+  default = "cron(0 0 * * 0)"
+}
+
+variable "weekly_full_backup_start_window_minutes" {
+  type    = number
+  default = 60
+}
+
+variable "weekly_full_backup_completion_window_minutes" {
+  type    = number
+  default = 60
+}
+
+variable "daily_incremental_backup_name" {
+  type    = string
+  default = "daily-incremental-backup"
+}
+
+variable "daily_incremental_backup_schedule" {
+  type    = string
+  default = "cron(0 0 * * 1-6)"
+}
+
+variable "daily_incremental_backup_start_window_minutes" {
+  type    = number
+  default = 60
+}
+
+variable "daily_incremental_backup_completion_window_minutes" {
+  type    = number
+  default = 60
+}
