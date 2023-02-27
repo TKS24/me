@@ -50,9 +50,51 @@ resource "aws_backup_vault" "backup_vault" {
 resource "aws_backup_plan" "backup_plan" {
   name        = var.backup_plan_name
   rule_count  = 1
-  lifecycle {
-    delete_after = 90
+ rule {
+    rule_name         = "weekly-full-backups"
+    target_backup_vault_name = aws_backup_vault.backup_vault.name
+    schedule          = "cron(0 0 ? * 7 *)" # every Sunday at midnight UTC
+    start_window_minutes = 60
+    completion_window_minutes = 1440 # 24 hours
+    lifecycle {
+      cold_storage_after_days = 30
+      delete_after_days = 90
+    }
   }
+
+  rule {
+    rule_name         = "daily-differential-backups"
+    target_backup_vault_name = aws_backup_vault.backup_vault.name
+    schedule          = "cron(0 0 ? * * *)" # every day at midnight UTC
+    start_window_minutes = 60
+    completion_window_minutes = 720 # 12 hours
+    lifecycle {
+      cold_storage_after_days = 30
+      delete_after_days = 90
+    }
+    selection {
+      selection_type = "STRING"
+      selection_pattern = "/"
+      iam_role_arn = aws_iam_role.backup_role.arn
+    }
+  }
+
+  advanced_backup_setting {
+    resource_type = "EC2"
+    backup_options {
+      resource_type = "EC2"
+      backup_plan_id = aws_backup_plan.backup_plan.id
+      advanced_backup_settings {
+        resource_backup_option {
+          backup_resource_type = "EFS"
+          backup_resource_options {
+            efs_file_system_type = "All"
+          }
+        }
+      }
+    }
+  }
+}
 }
 
 resource "aws_backup_selection" "backup_selection" {
