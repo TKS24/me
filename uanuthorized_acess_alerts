@@ -1,0 +1,62 @@
+variable "aws_region" {
+  default = "us-west-2"
+}
+
+variable "sns_topic_name" {
+  default = "file-integrity-alerts"
+}
+
+variable "sns_protocol" {
+  default = "email"
+}
+
+variable "sns_endpoint" {
+  default = "user@example.com"
+}
+
+variable "config_rule_name" {
+  default = "file-integrity-rule"
+}
+
+variable "config_rule_max_execution_frequency" {
+  default = "TwentyFour_Hours"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_sns_topic" "file_integrity_alerts" {
+  name = var.sns_topic_name
+}
+
+resource "aws_sns_topic_subscription" "file_integrity_alerts" {
+  topic_arn = aws_sns_topic.file_integrity_alerts.arn
+  protocol  = var.sns_protocol
+  endpoint  = var.sns_endpoint
+}
+
+resource "aws_config_rule" "file_integrity_rule" {
+  name        = var.config_rule_name
+  description = "Checks for unauthorized modification of critical system files, configuration files, or content files"
+  scope {
+    compliance_resource_id = "*"
+  }
+  source {
+    owner             = "AWS"
+    source_identifier = "FILE_INTEGRITY"
+  }
+  input_parameters = jsonencode({
+    "MaximumFileSize"           = "100000000"
+    "FileExtensions"            = "ini,conf,config,properties,xml,yaml,yml,txt"
+    "IgnoreHiddenFiles"         = true
+    "IncludeGlobalResourceIds"  = true
+    "IncludeComplianceDetails"  = true
+    "EvaluationFrequency"       = "24_HOURS"
+    "ResourceTypesScope"        = "AWS::EC2::Instance,AWS::ECS::TaskDefinition,AWS::Lambda::Function,AWS::RDS::DBInstance,AWS::S3::Bucket,AWS::SNS::Topic,AWS::SQS::Queue,AWS::SNS::Subscription,AWS::Route53::HostedZone,AWS::CloudFormation::Stack,AWS::CloudFront::Distribution,AWS::Elasticsearch::Domain,AWS::ApiGateway::RestApi,AWS::ApiGateway::Method,AWS::S3::Object,AWS::SNS::TopicPolicy,AWS::SNS::SubscriptionPolicy,AWS::CloudTrail::Trail,AWS::EC2::SecurityGroup,AWS::IAM::Role,AWS::Lambda::LayerVersion"
+  })
+  maximum_execution_frequency = var.config_rule_max_execution_frequency
+
+  depends_on = [aws_sns_topic_subscription.file_integrity_alerts]
+}
+
