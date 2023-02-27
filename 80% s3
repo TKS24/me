@@ -1,0 +1,81 @@
+variable "aws_region" {
+  type = string
+  default = "us-east-1"
+}
+
+variable "config_rule_name" {
+  type = string
+  default = "audit-storage-capacity"
+}
+
+variable "s3_bucket_name" {
+  type = string
+  default = "example-bucket"
+}
+
+variable "sns_topic_arn" {
+  type = string
+  default = "arn:aws:sns:us-east-1:123456789012:example-topic"
+}
+
+variable "delivery_frequency" {
+  type = string
+  default = "One_Hour"
+}
+
+variable "audit_storage_threshold" {
+  type = number
+  default = 80
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_config_configuration_recorder" "example" {
+  name = "example-recorder"
+
+  recording_group {
+    all_supported = true
+  }
+}
+
+resource "aws_config_delivery_channel" "example" {
+  name                 = "example-channel"
+  s3_bucket_name       = var.s3_bucket_name
+  sns_topic_arn        = var.sns_topic_arn
+  config_snapshot_delivery_properties {
+    delivery_frequency = var.delivery_frequency
+  }
+}
+
+resource "aws_config_configuration_recorder_status" "example" {
+  name    = aws_config_configuration_recorder.example.name
+  enabled = true
+}
+
+resource "aws_config_rule" "example" {
+  name = var.config_rule_name
+
+  source {
+    owner             = "AWS"
+    source_identifier = "STORAGE_VOLUME_CHECK"
+  }
+
+  description = "Check if audit storage volume is at ${var.audit_storage_threshold}% of maximum capacity"
+
+  input_parameters = <<PARAMETERS
+{
+  "maximumStorageVolumePercentage": ${var.audit_storage_threshold}
+}
+PARAMETERS
+
+  scope {
+    compliance_resource_id = "AWS::S3::Bucket/*"
+  }
+
+  depends_on = [
+    aws_config_delivery_channel.example,
+    aws_config_configuration_recorder_status.example
+  ]
+}
