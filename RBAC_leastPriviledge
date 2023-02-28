@@ -1,0 +1,83 @@
+# Configure AWS provider
+provider "aws" {
+  region = var.region
+}
+
+# Create an IAM role for AWS Config with read-only access to S3 buckets
+resource "aws_iam_role" "config_role" {
+  name = var.config_role_name
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "config.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  # Add a policy to allow read-only access to S3 buckets
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetBucket*",
+          "s3:GetObject*",
+          "s3:List*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the IAM role to AWS Config
+resource "aws_config_config_rule" "config_rule" {
+  name = var.config_rule_name
+  description = var.config_rule_description
+
+  # Add the IAM role to the Config Rule
+  source {
+    owner = "AWS"
+    source_identifier = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
+  }
+
+  # Attach the IAM role to AWS Config
+  depends_on = [aws_iam_role.config_role]
+  scope {
+    compliance_resource_id = "*"
+    compliance_resource_type = "AWS::S3::Bucket"
+  }
+
+  # Assign the IAM role to the Config Rule
+  input_parameters = jsonencode({
+    roleArn = aws_iam_role.config_role.arn
+  })
+}
+
+# Define variables
+variable "region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "config_role_name" {
+  type    = string
+  default = "AWSConfigRole"
+}
+
+variable "config_rule_name" {
+  type    = string
+  default = "AWSConfigRule"
+}
+
+variable "config_rule_description" {
+  type    = string
+  default = "AWS Config Rule to implement RBAC and least privileged access"
+}
