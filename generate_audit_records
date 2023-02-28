@@ -1,0 +1,57 @@
+variable "region" {
+  type        = string
+  description = "The AWS region where the Config rule will be created."
+  default     = "us-east-1"
+}
+
+variable "rule_name" {
+  type        = string
+  description = "The name of the Config rule."
+  default     = "audit-logs"
+}
+
+variable "rule_description" {
+  type        = string
+  description = "The description of the Config rule."
+  default     = "Ensure audit logs are enabled for all information system components"
+}
+
+variable "audit_logs_management_activities" {
+  type        = bool
+  description = "Whether to enable audit logs for management activities."
+  default     = true
+}
+
+variable "audit_logs_operator_or_administrator" {
+  type        = bool
+  description = "Whether to enable audit logs for operators or administrators."
+  default     = true
+}
+
+variable "audit_logs_system_events" {
+  type        = bool
+  description = "Whether to enable audit logs for system events."
+  default     = true
+}
+
+
+
+provider "aws" {
+  region = var.region
+}
+
+resource "aws_config_config_rule" "audit_logs" {
+  name        = var.rule_name
+  description = var.rule_description
+
+  input_parameters = jsonencode({
+    auditLogManagementActivities    = var.audit_logs_management_activities
+    auditLogOperatorOrAdministrator = var.audit_logs_operator_or_administrator
+    auditLogSystemEvents            = var.audit_logs_system_events
+  })
+
+  source {
+    owner             = "AWS"
+    source_identifier = "CONFIG_RULES/AWS-AWSManagedRules-AWSConfigRulesAuditLoggingEnabled"
+  }
+}
